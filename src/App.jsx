@@ -1,67 +1,92 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import './App.css';
 import axios from "axios";
 
-
-
-
-
 function App() {
   const [response, setResponse] = useState();
-  const [url,setUrl] = useState("");
-  const [id,setId] = useState("")
+  const [url, setUrl] = useState("");
+  const [id, setId] = useState("");
+  const [shouldStartInterval, setShouldStartInterval] = useState(false);
 
   const handleChange = (e) => {
-    setUrl(e.target.value);
-    setId(getYoutubeVideoId(url))
+    const newUrl = e.target.value;
+    setUrl(newUrl);
+    setId(getYoutubeVideoId(newUrl));
   }
 
-  const getYoutubeVideoId = (url) => {
-    const pattern = /^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+  const getYoutubeVideoId = useCallback((url) => {
+    const pattern = new RegExp("^(?:https?:\\/\\/)?(?:www\\.)?(?:youtube\\.com\\/(?:[^\\/\\n\\s]+\\/\\S+\\/|(?:v|e(?:mbed)?)\\/|\\S*?[?&]v=)|youtu\\.be\\/)([a-zA-Z0-9_-]{11})", "i");
     const match = url.match(pattern);
     return match ? match[1] : null;
-}
+  }, []);
 
-  const sendId = (videoId) => {
-    try {
-      const confirmation = axios.post(`https://sdgvr2g6eh.execute-api.eu-north-1.amazonaws.com/p/bin?videoid=${videoId}`)
-      console.log('Sending request...', confirmation);
-    } catch {
-      console.error('No confirmation');
+  const sendId = useCallback(async () => {
+    if (!id) {
+      console.error("Invalid or no video ID available");
+      return;
     }
-  }
-
-  const getResponse = async (videoId) => {
+    const apiUrl = "https://sdgvr2g6eh.execute-api.eu-north-1.amazonaws.com/p/bin";
     try {
-      const _response = await axios.post(`https://sdgvr2g6eh.execute-api.eu-north-1.amazonaws.com/p/son?videoid=${videoId}`);
-      setResponse(_response);
-    } catch {
-      console.error('No response')
+      await axios.post(apiUrl, { videoid: id }, {
+        headers: { 'Content-Type': 'application/json' }
+      });
+      console.log('Sending request...');
+      setShouldStartInterval(true);  // Trigger the start of the interval
+    } catch (error) {
+      console.error('Failed to send ID:', error);
     }
+  }, [id]);
 
-  }
+  const getResponse = useCallback(async () => {
+    const apiUrl = "https://sdgvr2g6eh.execute-api.eu-north-1.amazonaws.com/p/son";
+    try {
+      const result = await axios.get(`${apiUrl}?videoid=${id}`);
+      setResponse(result.data);
+      console.log('Retrieved data:', result.data);
+      setShouldStartInterval(false);  // Stop the interval
+    } catch (error) {
+      console.error('Error retrieving data:', error);
+    }
+  }, [id]);
 
   useEffect(() => {
-    const intervalId = setInterval(() => {
-      getResponse(id);
-    }, 5000);
-    return () => clearInterval(intervalId);
-  }, [id]);
+    let intervalId;
+    if (shouldStartInterval) {
+      intervalId = setInterval(getResponse, 5000);
+    }
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [shouldStartInterval, getResponse]);
 
   return (
     <>
-          <div className="App">
-            <div className="centered">
-                <p>
-                    YouTube Video Content Optimization
-                </p>
-                <input id="videoUrl" type="text" value={url} placeholder="Provide a YouTube link...." onChange={handleChange} />
-                <button id="fetchButton" onClick={sendId}>Optimize</button>
-                <div id="dataContainer">{response}</div>
-            </div>
+      <div className="App">
+        <div className="centered">
+          <p>YouTube Video Content Optimization</p>
+          <input 
+            id="videoUrl" 
+            type="text" 
+            value={url} 
+            placeholder="Provide a YouTube link...." 
+            onChange={handleChange} 
+          />
+          <button id="fetchButton" onClick={sendId}>Optimize</button>
+          <div id="dataContainer">
+            {response && (
+              <div>
+                <p> {response.Title}</p>
+                <p><strong>Hashtags:</strong> {response.Hashtags}</p>
+                <p><strong>Video ID:</strong> {response.videoid}</p>
+                <p><strong>Description:</strong> {response.Description}</p>
+              </div>
+            )}
+          </div>
         </div>
+      </div>
     </>
   )
 }
 
-export default App
+export default App;

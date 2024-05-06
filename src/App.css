@@ -26,7 +26,7 @@ body {
 p {
   font-family: sans-serif;
   color: white;
-  font-size: 20px;
+  font-size: 12px;
   margin-bottom: 20px;
 }
 
@@ -47,11 +47,12 @@ p {
 }
 
 .centered {
-  width: 300px;
+  width: 66%;
   /* Adjust this width to match the desired layout */
   text-align: center;
   padding: 20px;
-  margin-left: 65px;
+  margin-left: auto;
+  margin-right: auto;
   background: rgba(0, 0, 0, 0.5);
   /* Adds a semi-transparent background */
   border-radius: 10px;
